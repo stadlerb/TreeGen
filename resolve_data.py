@@ -1,11 +1,10 @@
 # -*-coding:utf-8-*-
 import random
-import sys
 from copy import deepcopy
 
 import numpy as np
 
-project = str(sys.argv[1]) + "/"
+global rulesnum, classnum
 
 
 def tqdm(a):
@@ -17,19 +16,9 @@ def tqdm(a):
 
 
 vocabulary = {}
-vocabulary["<Start>"] = 2
-vocabulary["NothingHere"] = 0
-vocabulary["Unknown"] = 1
 char_vocabulary = {}
-char_vocabulary["default"] = 0
-char_vocabulary["Unknown"] = 1
 tree_vocabulary = {}
-tree_vocabulary["Unknown"] = 1
-tree_vocabulary["NothingHere"] = 0
-tree_vocabulary["NoneCopy"] = 2
-tree_vocabulary["CopyNode"] = 3
-tree_vocabulary["End"] = 5
-tree_vocabulary["<StartNode>"] = 4
+
 Rule = []
 Nonterminal = []
 
@@ -56,7 +45,11 @@ dev_count = 0
 dev_ab = 0
 
 
-def readrules():
+def readrules(project):
+    global rulesnum, classnum, Rule, Nonterminal
+    Rule.clear()
+    Nonterminal.clear()
+
     f = open(project + "Rule.txt", "r")
     lines = f.readlines()
     f.close()
@@ -71,24 +64,40 @@ def readrules():
         l.append(l1)
         Rule.append(l)
 
-
-readrules()
-rulesnum = len(Rule)
-classnum = rulesnum + nl_len
+    rulesnum = len(Rule)
+    classnum = rulesnum + nl_len
 
 
-def readvoc():
+def readvoc(project):
     global comment_vocabulary
     global tree_vocabulary
     global char_vocabulary
     global vocabulary
+
+    tree_vocabulary.clear()
+    char_vocabulary.clear()
+    vocabulary.clear()
+
+    vocabulary["<Start>"] = 2
+    vocabulary["NothingHere"] = 0
+    vocabulary["Unknown"] = 1
+
+    char_vocabulary["default"] = 0
+    char_vocabulary["Unknown"] = 1
+    tree_vocabulary["Unknown"] = 1
+    tree_vocabulary["NothingHere"] = 0
+    tree_vocabulary["NoneCopy"] = 2
+    tree_vocabulary["CopyNode"] = 3
+    tree_vocabulary["End"] = 5
+    tree_vocabulary["<StartNode>"] = 4
+
     f = open(project + "tree_voc.txt", "r")
     '''lines = f.readlines()
     for line in lines:
         words = line.strip().split()
         if int(words[1]) >= 10:
             tree_vocabulary[words[0]] = len(tree_vocabulary)'''
-    tree_vocabulary = eval(f.readline())
+    tree_vocabulary.update(eval(f.readline()))
     if "HS" not in project:
         tree_vocabulary["End"] = len(tree_vocabulary)
     f.close()
@@ -96,7 +105,7 @@ def readvoc():
     f = open(project + "char_voc.txt", "r")
     lines = f.readlines()
     try:
-        char_vocabulary = eval(lines[0])
+        char_vocabulary.update(eval(lines[0]))
     except:
         # lines = f.readlines()
         for line in lines:
@@ -112,7 +121,7 @@ def readvoc():
         if int(words[1]) >= 2:
             vocabulary[words[0]] = len(vocabulary)
         nl_voc_ground[words[0]] = len(nl_voc_ground)'''
-    vocabulary = eval(f.readline())
+    vocabulary.update(eval(f.readline()))
     f.close()
 
 
@@ -391,13 +400,16 @@ def line2mask(lines, length):
     return ret, father_vec, labels
 
 
-def read_data(file_name):
+def read_data(file_name, project):
+    global trainset
     file2number = {}
     file2number["train_trans.txt"] = 0
     file2number["dev_trans.txt"] = 1
     file2number["test_trans.txt"] = 2
 
     index_of_dataset = file2number[file_name]
+    trainset[index_of_dataset].clear()
+
     f = open(project + file_name, "r")
     file_data = []
     for i in range(8):
@@ -574,15 +586,19 @@ def batch_data(batch_size, dataset_name):  # get an acceptable data for NN;
     return all_data, all_index
 
 
-def resolve_data():
+def resolve_data(project):
     global trainset
-    readvoc()
-    read_data("train_trans.txt")
-    read_data("dev_trans.txt")
-    read_data("test_trans.txt")
+    readvoc(project)
+    read_data("train_trans.txt", project)
+    read_data("dev_trans.txt", project)
+    read_data("test_trans.txt", project)
 
 
-if "run.py" in sys.argv[0]:
-    resolve_data()
-elif "predict" in sys.argv[0]:
-    readvoc()
+def get_rulesnum():
+    global rulesnum
+    return rulesnum
+
+
+def get_classnum():
+    global classnum
+    return classnum
