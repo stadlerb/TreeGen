@@ -1,0 +1,10 @@
+/__pycache__
+/.idea
+
+/ATIS/out.txt
+/ATIS/save[0-9]*
+/ATIS/save_list/save*
+
+/HS-B/out.txt
+/HS-B/save[0-9]*
+/HS-B/save_list/save*
