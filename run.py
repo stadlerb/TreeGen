@@ -1,59 +1,23 @@
 # -*-coding:utf-8-*-
+import argparse
 import os
-import sys
 from copy import deepcopy
 
 import numpy as np
 import tensorflow as tf
 
+import resolve_data as rd
 from code_generate_model import code_gen_model
 # resolve_data Functions
 from resolve_data import batch_data, get_classnum, readrules, resolve_data, rulebondast, tqdm
 # resolve_data Variables
-from resolve_data import char_vocabulary, nl_len, parent_len, rulelist_len, rules_len, tree_len, tree_vocabulary, \
-    vocabulary
+from resolve_data import char_vocabulary, tree_vocabulary, vocabulary
 
-project = str(sys.argv[1]) + "/"
-readrules(project)
-resolve_data(project)
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-
-vocabu = {}
-tree_vocabu = {}
-vocabu_func = {}
-tree_vocabu_func = {}
-vocabu_var = {}
-tree_vocabu_var = {}
-
-embedding_size = 256
-if "HS" not in project:
-    embedding_size = 128
-conv_layernum = 256
-conv_layersize = 3
-rnn_layernum = 50
-batch_size = 30
-if "HS" not in project:
-    batch_size = 64
-NL_vocabu_size = len(vocabulary)
-Tree_vocabu_size = len(tree_vocabulary)
-NL_len = nl_len
-Tree_len = tree_len
-learning_rate = 1e-4
-keep_prob = 0.8
-pretrain_times = 100000
-pretrain_dis_times = 2
-train_times = 1000
-parent_len = 20
-rule_num_len = 1350
-
-rules_len = rulelist_len = 200
-
-numberstack = []
-list2wordlist = []
-cardnum = []
-copynum = 0
-copylst = []
+# XXX Instance variables of a model/trainer class might be an improvament
+global project, embedding_size, conv_layernum, conv_layersize, rnn_layernum
+global cardnum, copynum, copylst
+global batch_size, learning_rate, keep_prob, pretrain_times
+global rulelist_len, rules_len, NL_len, Tree_len, parent_len
 
 
 def pre_mask():
@@ -238,8 +202,8 @@ def g_eval(sess, model, batch_data):
 
 def run():
     Code_gen_model = code_gen_model(get_classnum(), embedding_size, conv_layernum, conv_layersize, rnn_layernum,
-                                    batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len,
-                                    parent_len, learning_rate, keep_prob, len(char_vocabulary),
+                                    batch_size, len(vocabulary), len(tree_vocabulary), NL_len, Tree_len,
+                                    rd.parent_len, learning_rate, keep_prob, len(char_vocabulary),
                                     rules_len)
     valid_batch, _ = batch_data(batch_size, "dev")  # read data
     best_accuracy = 0
@@ -312,8 +276,62 @@ def run():
     return
 
 
+def get_args():
+    parser = argparse.ArgumentParser("Train model", fromfile_prefix_chars='@')
+    parser.add_argument("project_name", type=str)
+
+    parser.add_argument("--embedding-size", type=int, default=None)
+    parser.add_argument("--conv-layernum", type=int, default=256)
+    parser.add_argument("--conv-layersize", type=int, default=3)
+    parser.add_argument("--rnn-layernum", type=int, default=50)
+
+    parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--keep-prob", type=int, default=0.8)
+    parser.add_argument("--pretrain-times", type=int, default=100000)
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--gpus", type=str, default=None)
+
+    return parser.parse_args()
+
+
 def main():
+    args = get_args()
+
+    global project, embedding_size, conv_layernum, conv_layersize, rnn_layernum
+    global batch_size, learning_rate, keep_prob, pretrain_times
+    global cardnum, copynum, copylst
+    global rulelist_len, rules_len, NL_len, Tree_len, parent_len
+
+    project = args.project_name + "/"
+    embedding_size = args.embedding_size if args.embedding_size is not None else 256 if "HS" in project else 128
+    conv_layernum = args.conv_layernum
+    conv_layersize = args.conv_layersize
+    rnn_layernum = args.rnn_layernum
+    batch_size = args.batch_size if args.batch_size is not None else 64 if "HS" in project else 30
+    learning_rate = args.learning_rate
+    keep_prob = args.keep_prob
+    pretrain_times = args.pretrain_times
+
+    if args.gpus is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+
+    cardnum = []
+    copynum = 0
+    copylst = []
+
+    readrules(project)
+    resolve_data(project)
+
+    # XXX Why duplicate variable names and values from resolve_data?
+    # XXX Instance variables of a class for datasets might be an improvement
+    rulelist_len = rd.rulelist_len
+    rules_len = rd.rules_len
+    NL_len = rd.nl_len
+    Tree_len = rd.tree_len
+    parent_len = rd.parent_len
+
     run()
 
 
-main()
+if __name__ == '__main__':
+    main()
