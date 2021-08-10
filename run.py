@@ -7,10 +7,15 @@ import numpy as np
 import tensorflow as tf
 
 from code_generate_model import code_gen_model
-from resolve_data import rulebondast, rulelist_len, nl_len, char_vocabulary, classnum, tree_vocabulary, \
-    parent_len, tree_len, batch_data, vocabulary, rules_len, tqdm
+# resolve_data Functions
+from resolve_data import batch_data, get_classnum, readrules, resolve_data, rulebondast, tqdm
+# resolve_data Variables
+from resolve_data import char_vocabulary, nl_len, parent_len, rulelist_len, rules_len, tree_len, tree_vocabulary, \
+    vocabulary
 
 project = str(sys.argv[1]) + "/"
+readrules(project)
+resolve_data(project)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
@@ -232,7 +237,7 @@ def g_eval(sess, model, batch_data):
 
 
 def run():
-    Code_gen_model = code_gen_model(classnum, embedding_size, conv_layernum, conv_layersize, rnn_layernum,
+    Code_gen_model = code_gen_model(get_classnum(), embedding_size, conv_layernum, conv_layersize, rnn_layernum,
                                     batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len,
                                     parent_len, learning_rate, keep_prob, len(char_vocabulary),
                                     rules_len)

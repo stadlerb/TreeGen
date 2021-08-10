@@ -9,11 +9,17 @@ import numpy as np
 import tensorflow as tf
 
 from code_generate_model import code_gen_model
-from resolve_data import rulelist_len, nl_len, char_vocabulary, length, project, line2rules, classnum, tree_vocabulary, \
-    word2vec, line2rulevec, parent_len, tree_len, batch_data, vocabulary, rules_len, line2charvec, char_len, Rule, \
-    line2vec, line2mask
+# resolve_data Functions
+from resolve_data import batch_data, get_classnum, line2charvec, line2mask, line2rules, line2rulevec, line2vec, \
+    readrules, readvoc, word2vec
+# resolve_data Variables
+from resolve_data import char_len, char_vocabulary, length, nl_len, parent_len, Rule, rulelist_len, rules_len, tree_len, \
+    tree_vocabulary, vocabulary
 
 project = str(sys.argv[1]) + "/"
+
+readrules(project)
+readvoc(project)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
@@ -283,8 +289,8 @@ def J_run():
 
 
 def data_random():
-    limit = math.sqrt(6 / (classnum + 10 + embedding_size * 2))
-    vec = np.random.uniform(-limit, limit, size=[classnum + 10, embedding_size * 2])
+    limit = math.sqrt(6 / (get_classnum() + 10 + embedding_size * 2))
+    vec = np.random.uniform(-limit, limit, size=[get_classnum() + 10, embedding_size * 2])
     for i in range(len(vec[0])):
         vec[0, i] = 0
     return vec
@@ -610,7 +616,7 @@ def predict():
     NL_vocabu_size = len(vocabulary)
     Tree_vocabu_size = len(tree_vocabulary)
 
-    Code_gen_model = code_gen_model(classnum, embedding_size, conv_layernum, conv_layersize,
+    Code_gen_model = code_gen_model(get_classnum(), embedding_size, conv_layernum, conv_layersize,
                                     rnn_layernum,
                                     batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len,
                                     parent_len, learning_rate, keep_prob, len(char_vocabulary),
