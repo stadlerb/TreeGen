@@ -566,7 +566,7 @@ def resolve_data():
     read_data("dev_trans.txt")
     read_data("test_trans.txt")
 
-if sys.argv[0] == "run.py":
+if "run.py" in sys.argv[0]:
     resolve_data()
 elif "predict" in sys.argv[0]:
     readvoc()
