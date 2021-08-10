@@ -1,18 +1,21 @@
-#-*-coding:utf-8-*-
-import sys
-from code_generate_model import *
-from resolve_data import *
-import os
-import tensorflow as tf
-import numpy as np
-import os
+# -*-coding:utf-8-*-
 import math
+import os
 import queue as Q
+import sys
 from copy import deepcopy
-from tqdm import tqdm
+
+import numpy as np
+import tensorflow as tf
+
+from code_generate_model import code_gen_model
+from resolve_data import rulelist_len, nl_len, char_vocabulary, length, project, line2rules, classnum, tree_vocabulary, \
+    word2vec, line2rulevec, parent_len, tree_len, batch_data, vocabulary, rules_len, line2charvec, char_len, Rule, \
+    line2vec, line2mask
+
 project = str(sys.argv[1]) + "/"
 
-os.environ["CUDA_VISIBLE_DEVICES"]="5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 vocabu = {}
 tree_vocabu = {}
@@ -26,7 +29,6 @@ J_VarList = []
 J_readrulenum = -1
 J_NeedsEnd = []
 J_NlList = []
-
 
 global_step = 0
 embedding_size = 128
@@ -72,13 +74,16 @@ def J_readrule():
         J_HasSon.append(line.strip().split()[0])
         J_NeedsEnd.append(line.strip().split()[0])
 
+
 J_readrule()
+
 
 def J_readlist(in_file):
     lines = in_file.readlines()
     global J_readrulenum
     J_readrulenum = int(lines[1])
     return lines[0].replace(" node_gen ^", "").strip().split()
+
 
 def J_findtheson_name(l, site):
     ans = []
@@ -96,6 +101,7 @@ def J_findtheson_name(l, site):
         nowsite += 1
     return ans
 
+
 def J_isend(l, site):
     if l[site] not in J_HasSon:
         return True
@@ -109,6 +115,7 @@ def J_isend(l, site):
     elif l[site] in J_NeedsEnd and sonlist[-1] == "End":
         return True
     return False
+
 
 def J_findthecontrol(liststr, site):
     ans = [site + 1]
@@ -125,6 +132,7 @@ def J_findthecontrol(liststr, site):
         nowsite += 1
     return ans
 
+
 def J_AddOneSon(l, rule, site):
     node = l[site]
     if node != rule[0]:
@@ -139,8 +147,9 @@ def J_AddOneSon(l, rule, site):
     step_list_p.insert(e, global_step)
     return newlist
 
+
 def J_AddSon(l, rulenum, site):
-    if rulenum >= len(Rule): # for copy
+    if rulenum >= len(Rule):  # for copy
         newlist = deepcopy(l)
         newlist.insert(site + 1, "^")
         step_list_p.insert(site + 1, global_step)
@@ -157,16 +166,19 @@ def J_AddSon(l, rulenum, site):
         step_list_p.insert(site + 1, global_step)
     return newlist
 
+
 def J_AddSon_nodegen(l, site):
     newlist = deepcopy(l)
     se = J_findthecontrol(l, site)
     newlist.insert(se[1], "^")
-    #step_list_p.insert(se[1], global_step)
+    # step_list_p.insert(se[1], global_step)
     newlist.insert(se[1], "node_gen")
-    #step_list_p.insert(se[1], global_step)
+    # step_list_p.insert(se[1], global_step)
     return newlist
 
+
 father_index_now = -1
+
 
 def J_scan(l, rulenum):
     for i in range(len(l)):
@@ -182,24 +194,26 @@ def J_scan(l, rulenum):
             return J_AddSon(l, J_readrulenum, i)
     return None
 
+
 def J_findthefather_site(l, site):
     index = site - 1
     count = 0
     if index < 0:
         return -1
     while index >= 0:
-        #print ("fa", words[i])
+        # print ("fa", words[i])
         if "^" in l[index]:
             count -= 1
         else:
             count += 1
         if count == 1:
-#            exit()
-#            print (words[index])
-            #return words[index]
+            #            exit()
+            #            print (words[index])
+            # return words[index]
             return index
         index -= 1
     return -1
+
 
 def J_scan_for_node(l, rulenum):
     for i in range(len(l)):
@@ -209,8 +223,9 @@ def J_scan_for_node(l, rulenum):
         if not J_isend(l, i):
             newl = J_AddSon_nodegen(l, i)
 
-            return newl, i#J_findthefather_site(newl, i + 1)
+            return newl, i  # J_findthefather_site(newl, i + 1)
     return None, -1
+
 
 def J_getfeaturenode(l, nextsite):
     i = nextsite
@@ -231,10 +246,11 @@ def J_getfeaturenode(l, nextsite):
     node_par.append(" ".join(l_f))
     return node_par
 
+
 def J_run():
     global global_step
     in_file = open(project + "Tree_Rule.in")
-    #in_file.close()
+    # in_file.close()
     fw = open(project + "Tree_Feature.out", "w")
     l = J_readlist(in_file)
     in_file.close()
@@ -265,19 +281,29 @@ def J_run():
             fw.write(str(father_index_now) + "\n")
     fw.close()
 
+
+def data_random():
+    limit = math.sqrt(6 / (classnum + 10 + embedding_size * 2))
+    vec = np.random.uniform(-limit, limit, size=[classnum + 10, embedding_size * 2])
+    for i in range(len(vec[0])):
+        vec[0, i] = 0
+    return vec
+
+
 def create_model(session, g, placeholder=""):
-    if(os.path.exists(project + "save1")):
+    if (os.path.exists(project + "save1")):
         saver = tf.train.Saver()
         saver.restore(session, tf.train.latest_checkpoint(project + "save1/"))
         print("load the model")
     else:
         classvec = data_random()
-        session.run(tf.global_variables_initializer(), feed_dict={d.variable:classvec})
+        # FIXME: d is undefined
+        session.run(tf.global_variables_initializer(), feed_dict={d.variable: classvec})
         print("create a new model")
 
 
 class Javaoutput:
-    def __init__(self, Tree, Nl, Node, PNode , Root, TreeWithEnd,FatherTree, GrandFatherTree, state):
+    def __init__(self, Tree, Nl, Node, PNode, Root, TreeWithEnd, FatherTree, GrandFatherTree, state):
         self.Tree = Tree
         self.Nl = Nl
         self.Node = Node
@@ -307,6 +333,7 @@ class Javaoutput:
     def __lt__(self, other):
         return self.Probility > other.Probility
 
+
 def getJavaOut(Nl):
     f = open(project + "Tree_Feature.out", "r")
     lines = f.readlines()
@@ -315,11 +342,14 @@ def getJavaOut(Nl):
     if len(lines) == 2:
         return Javaoutput(lines[0][:-1], Nl, "", "", "", "", "", "", "end")
     if len(lines) == 12:
-        return Javaoutput(lines[4][:-1], Nl, lines[1][:-1], lines[2][:-1], lines[3][:-1], lines[0][:-1],lines[6][:-1], lines[7][:-1], "end")
+        return Javaoutput(lines[4][:-1], Nl, lines[1][:-1], lines[2][:-1], lines[3][:-1], lines[0][:-1], lines[6][:-1],
+                          lines[7][:-1], "end")
 
     if len(lines) == 1:
         return Javaoutput("", Nl, "", "", "", "", "", "", "error")
-    return Javaoutput(lines[4][:-1], Nl, lines[1][:-1], lines[2][:-1], lines[3][:-1], lines[0][:-1],lines[6][:-1], lines[7][:-1], "grow")
+    return Javaoutput(lines[4][:-1], Nl, lines[1][:-1], lines[2][:-1], lines[3][:-1], lines[0][:-1], lines[6][:-1],
+                      lines[7][:-1], "grow")
+
 
 def getlistDeep_all(inputlist):
     ne = []
@@ -333,10 +363,11 @@ def getlistDeep_all(inputlist):
             count += 1
     return ne
 
+
 def cov(tree):
     ans = " "
     li = tree.split()
-    #for s in str:
+    # for s in str:
     deeplist = getlistDeep_all(li)
     mp = {}
     for i in range(len(li)):
@@ -348,12 +379,14 @@ def cov(tree):
         ans += " " + li[i]
     return ans.replace("  ", "")
 
+
 def pre_mask():
     mask = np.zeros([rulelist_len, rulelist_len])
     for i in range(rulelist_len):
         for t in range(i + 1):
             mask[i][t] = 1
     return mask
+
 
 def g_predict_beam(sess, model, batch_data):
     batch = batch_data
@@ -363,31 +396,32 @@ def g_predict_beam(sess, model, batch_data):
         rewards[i] = 1
 
     y = sess.run(model.y_result, feed_dict={model.input_NL: batch[0],
-                                                model.input_NLChar:batch[1],
-                                                model.inputrulelist:batch[6],
-                                                model.inputrulelistnode:batch[7],
-                                                model.inputrulelistson:batch[8],
-                                                model.tree_path_vec: batch[9],
-                                                model.treemask: batch[10],
-                                                model.father_mat: batch[11],
-                                                model.labels:batch[12],
-                                                model.antimask:pre_mask(),
-                                                model.keep_prob: 1,
-                                                model.rewards: rewards,
-                                                model.is_train: False
-                                                })
+                                            model.input_NLChar: batch[1],
+                                            model.inputrulelist: batch[6],
+                                            model.inputrulelistnode: batch[7],
+                                            model.inputrulelistson: batch[8],
+                                            model.tree_path_vec: batch[9],
+                                            model.treemask: batch[10],
+                                            model.father_mat: batch[11],
+                                            model.labels: batch[12],
+                                            model.antimask: pre_mask(),
+                                            model.keep_prob: 1,
+                                            model.rewards: rewards,
+                                            model.is_train: False
+                                            })
 
     for i in range(len(batch[6][0])):
         if batch[6][0][i] == 0:
             return y[0][i - 1]
-    
-    return y[ -1 ]
 
-def get_tree_path_vec_for_pre (tree_path):
+    return y[-1]
+
+
+def get_tree_path_vec_for_pre(tree_path):
     fathers = []
     tree_path_len = 10
     tree_path_vec = np.zeros([length[5], tree_path_len])
-    #return tree_path_vec
+    # return tree_path_vec
     for i in range(len(tree_path)):
         words = tree_path[i].strip().split()
         for t in range(min(len(words), tree_path_len)):
@@ -397,21 +431,22 @@ def get_tree_path_vec_for_pre (tree_path):
 
 
 step = 1
+
+
 def getAction(sess, Code_gen_model, JavaOut):
-    valid_batch, _ = batch_data(1, "test") # read data 
+    valid_batch, _ = batch_data(1, "test")  # read data
     input_NL = line2vec(JavaOut.Nl, "nl", length[0])
     input_NLChar = line2charvec(JavaOut.Nl, length[0], char_len)
     input_Tree = line2vec(cov(JavaOut.Tree), "tree", length[1])
     input_Father = line2vec(cov(JavaOut.FatherTree), "tree", length[2])
     input_Grand = line2vec(cov(JavaOut.GrandFatherTree), "tree", length[3])
     tree_path_vec, father_vec = get_tree_path_vec_for_pre(JavaOut.Root)
-    print (JavaOut.Root)
+    print(JavaOut.Root)
     deepthlist = []
     tree_path = JavaOut.Root
     for i in range(len(tree_path)):
         words = tree_path[i].strip().split()
         deepthlist.append(str(len(words)))
-
 
     root = ""
     rules_str = ""
@@ -419,7 +454,7 @@ def getAction(sess, Code_gen_model, JavaOut):
     flag = True
     for n in JavaOut.RuleList:
         rules_str += str(n) + " "
-    
+
     input_Rules = line2rulevec(rules_str, length[5])
     input_func = np.zeros([1])
     list_input = []
@@ -437,20 +472,21 @@ def getAction(sess, Code_gen_model, JavaOut):
     step += 1
     list_input.append(tree_path_vec)
     deepth = " ".join(deepthlist)
-    print ("------")
-    print (JavaOut.father_index)
+    print("------")
+    print(JavaOut.father_index)
     line = ""
     for f in JavaOut.father_index:
         line += str(f) + " "
-    print (line)
+    print(line)
     ret, father_vec, labels = line2mask(line, length[5])
     list_input.append(ret)
     list_input.append(father_vec)
     list_input.append(labels)
     for i in range(len(list_input)):
         list_input[i] = np.expand_dims(list_input[i], axis=0)
-    
+
     return g_predict_beam(sess, Code_gen_model, list_input)
+
 
 def WriteJavaIn(JavaOut, action):
     f = open(project + "Tree_Rule.in", "w")
@@ -479,14 +515,14 @@ def BeamSearch(sess, Code_gen_model, Nl, N, NL_number):
         if level > 10000:
             N -= 1
         for JavaOut in Beam:
-            if JavaOut.is_end :
+            if JavaOut.is_end:
                 Set_.put(JavaOut)
                 continue
-            print ("-----------")
+            print("-----------")
             try:
                 res = getAction(sess, Code_gen_model, JavaOut)
                 list_res = [[res[i], i] for i in range(len(res))]
-#               list_res = sorted(list_res, reverse=True)
+                #               list_res = sorted(list_res, reverse=True)
                 list_res = sorted(list_res, reverse=True)
             except:
                 JavaOut.is_end = True
@@ -506,9 +542,9 @@ def BeamSearch(sess, Code_gen_model, Nl, N, NL_number):
                 if i >= len(Rule) and JavaOut.Node.strip() not in copy_node:
                     count_n += 1
                     continue
-                
-                WriteJavaIn(JavaOut, i )
-                global global_step 
+
+                WriteJavaIn(JavaOut, i)
+                global global_step
                 global_step = JavaOut.gs
                 global step_list_p
                 step_list_p = deepcopy(JavaOut.step_list)
@@ -522,23 +558,25 @@ def BeamSearch(sess, Code_gen_model, Nl, N, NL_number):
                 JavaOutNext.RuleList = deepcopy(JavaOut.RuleList)
                 JavaOutNext.Root = deepcopy(JavaOut.Root) + JavaOutNext.Root
                 JavaOutNext.rule = deepcopy(JavaOut.rule)
-                JavaOutNext.father_index = deepcopy(JavaOut.father_index)#.append(father_index_now)
+                JavaOutNext.father_index = deepcopy(JavaOut.father_index)  # .append(father_index_now)
                 JavaOutNext.father_index.append(father_index_now)
                 nowtree = JavaOutNext.Tree
-                print (JavaOutNext.Tree)
+                print(JavaOutNext.Tree)
                 apa = 0.6
                 if JavaOutNext.state == "grow":
                     print("grow")
-                    print ("{Rule: %s}" % str(i))
+                    print("{Rule: %s}" % str(i))
                     if len(JavaOutNext.Tree.split()) > 1000:
                         continue
-                    JavaOutNext.Probility = (JavaOut.Probility * math.pow(len(JavaOut.RuleList), apa) + math.log(max(1e-10, res[i]))) / math.pow(len(JavaOut.RuleList) + 1, apa)
+                    JavaOutNext.Probility = (JavaOut.Probility * math.pow(len(JavaOut.RuleList), apa) + math.log(
+                        max(1e-10, res[i]))) / math.pow(len(JavaOut.RuleList) + 1, apa)
                     JavaOutNext.RuleList.append(i + 1)
                     Set_.put(JavaOutNext)
 
-                elif JavaOutNext.state == "end": # BUG!!!!?????
+                elif JavaOutNext.state == "end":  # BUG!!!!?????
                     if JavaOutNext.Tree != JavaOut.Tree:
-                        JavaOutNext.Probility = (JavaOut.Probility * math.pow(len(JavaOut.RuleList), apa) + math.log(max(1e-10, res[i]))) / math.pow(len(JavaOut.RuleList) + 1, apa)
+                        JavaOutNext.Probility = (JavaOut.Probility * math.pow(len(JavaOut.RuleList), apa) + math.log(
+                            max(1e-10, res[i]))) / math.pow(len(JavaOut.RuleList) + 1, apa)
                     else:
                         JavaOutNext.Probility = JavaOut.Probility
                     JavaOutNext.is_end = True
@@ -547,16 +585,16 @@ def BeamSearch(sess, Code_gen_model, Nl, N, NL_number):
         Beam = []
         endnum = 0
 
-        while((not Set_.empty()) and N > len(Beam)):
+        while ((not Set_.empty()) and N > len(Beam)):
             JavaOut = Set_.get()
             print(JavaOut.Probility)
             close_table[JavaOut.Tree] = 1
             Beam.append(JavaOut)
             if JavaOut.is_end:
                 endnum += 1
-        
+
         if endnum >= N:
-            f = open(project + "out/"+str(NL_number)+".txt","w")
+            f = open(project + "out/" + str(NL_number) + ".txt", "w")
             for JavaOut in Beam:
                 f.write(JavaOut.Tree)
                 f.write("\n")
@@ -572,11 +610,14 @@ def predict():
     NL_vocabu_size = len(vocabulary)
     Tree_vocabu_size = len(tree_vocabulary)
 
-    Code_gen_model = code_gen_model(classnum, embedding_size, conv_layernum, conv_layersize, rnn_layernum,
-                                    batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len, parent_len, learning_rate, keep_prob, len(char_vocabulary), rules_len)
+    Code_gen_model = code_gen_model(classnum, embedding_size, conv_layernum, conv_layersize,
+                                    rnn_layernum,
+                                    batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len,
+                                    parent_len, learning_rate, keep_prob, len(char_vocabulary),
+                                    rules_len)
     config = tf.ConfigProto(device_count={"GPU": 0})
-    #config = tf.ConfigProto(allow_soft_placement=True)
-    #config.gpu_options.allow_growth = True
+    # config = tf.ConfigProto(allow_soft_placement=True)
+    # config.gpu_options.allow_growth = True
 
     with tf.Session(config=config) as sess:
         create_model(sess, "", "")
@@ -585,7 +626,7 @@ def predict():
         f.close()
 
         for i in range(len(lines)):
-            Nl = lines[i].strip()        
+            Nl = lines[i].strip()
             print(Nl)
             f = open(project + "Tree_Feature.out", "w")
             f.write("root ^")
@@ -605,6 +646,8 @@ def predict():
             f.close()
             BeamSearch(sess, Code_gen_model, Nl, int(sys.argv[2]), i)
             print(str(i) + "th code is finished")
+
+
 def read_copy_node():
     f = open(project + "copy_node.txt", "r")
     lines = f.readlines()
@@ -615,7 +658,8 @@ def read_copy_node():
 
 def main():
     read_copy_node()
-    print ("predict start")
+    print("predict start")
     predict()
+
 
 main()

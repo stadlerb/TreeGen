@@ -1,17 +1,18 @@
-#-*-coding:utf-8-*-
+# -*-coding:utf-8-*-
+import os
 import sys
-project = str(sys.argv[1]) + "/"
-from code_generate_model import *
-from resolve_data import *
-import os
-import tensorflow as tf
-import numpy as np
-import os
-import math
-import queue as Q
 from copy import deepcopy
 
-os.environ["CUDA_VISIBLE_DEVICES"]="5"
+import numpy as np
+import tensorflow as tf
+
+from code_generate_model import code_gen_model
+from resolve_data import rulebondast, rulelist_len, nl_len, char_vocabulary, classnum, tree_vocabulary, \
+    parent_len, tree_len, batch_data, vocabulary, rules_len, tqdm
+
+project = str(sys.argv[1]) + "/"
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 vocabu = {}
 tree_vocabu = {}
@@ -49,6 +50,7 @@ cardnum = []
 copynum = 0
 copylst = []
 
+
 def pre_mask():
     mask = np.zeros([rulelist_len, rulelist_len])
     for i in range(rulelist_len):
@@ -56,45 +58,47 @@ def pre_mask():
             mask[i][t] = 1
     return mask
 
+
 def get_card(lst):
     global cardnum
     global copynum
     global copylst
-    if True:#len(cardnum) == 0:
+    if True:  # len(cardnum) == 0:
         f = open(project + "nlnum.txt", "r")
         st = f.read()
         cardnum = eval(st)
         f.close()
-    if True:#copynum == 0:
+    if True:  # copynum == 0:
         f = open(project + "copylst.txt", "r")
         st = f.read()
         copylst = eval(st)
         for x in copylst:
-          if x == 1:
-            copynum += 1
-    
+            if x == 1:
+                copynum += 1
+
     dic = {}
     copydic = {}
     wrongnum = 0
     wrongcnum = 0
     for i, x in enumerate(lst):
         if x == False:
-          if copylst[i] == 1:
-            wrongnum += 1
-            if cardnum[i] not in copydic:
-              wrongcnum += 1
-              copydic[cardnum[i]] = 1
-          if cardnum[i] not in dic:
-            dic[cardnum[i]] = 1
+            if copylst[i] == 1:
+                wrongnum += 1
+                if cardnum[i] not in copydic:
+                    wrongcnum += 1
+                    copydic[cardnum[i]] = 1
+            if cardnum[i] not in dic:
+                dic[cardnum[i]] = 1
     devs_num = 0
     if "ATIS" in project:
         devs_num = 491
     elif "HS" in project:
         devs_num = 66
-    return devs_num-len(dic), wrongnum/copynum, wrongcnum
+    return devs_num - len(dic), wrongnum / copynum, wrongcnum
+
 
 def create_model(session, g, placeholder=""):
-    if(os.path.exists(project + "save1")):
+    if (os.path.exists(project + "save1")):
         saver = tf.train.Saver()
         saver.restore(session, tf.train.latest_checkpoint(project + "save1/"))
         print("load the model")
@@ -107,9 +111,11 @@ def save_model(session, number):
     saver = tf.train.Saver()
     saver.save(session, project + "save" + str(number) + "/model.cpkt")
 
+
 def save_model_time(session, number, card):
     saver = tf.train.Saver()
     saver.save(session, project + "save_list/save" + str(number) + "_" + str(card) + "/model.cpkt")
+
 
 def get_state(batch_data):
     vec = np.zeros([len(batch_data[6])])
@@ -121,6 +127,7 @@ def get_state(batch_data):
                 break
         vec[i] = index
     return vec
+
 
 def g_pretrain(sess, model, batch_data):
     batch = deepcopy(batch_data)
@@ -138,32 +145,34 @@ def g_pretrain(sess, model, batch_data):
             loss_mask[i][t] = 1
 
     state = get_state(batch_data)
-    
-    _, pre, a = sess.run([model.optim, model.correct_prediction, model.cross_entropy], feed_dict={model.input_NL: batch[0],
-                                                  model.input_NLChar:batch[1],
-                                                  model.inputparentlist: batch[5],
-                                                  model.inputrulelist:batch[6],
-                                                  model.inputrulelistnode:batch[7],
-                                                  model.inputrulelistson:batch[8],
-                                                  model.inputY_Num: batch[9],
-                                                  model.tree_path_vec: batch[12],
-                                                  model.labels:batch[18],
-                                                  model.loss_mask:loss_mask,
-                                                  model.antimask: pre_mask(),
-                                                  model.treemask: batch[16],
-                                                  model.father_mat:batch[17],
-                                                  model.state:state,
-                                                  model.keep_prob: 0.85,
-                                                  model.rewards: rewards,
-                                                  model.is_train: True
-                                                  })
+
+    _, pre, a = sess.run([model.optim, model.correct_prediction, model.cross_entropy],
+                         feed_dict={model.input_NL: batch[0],
+                                    model.input_NLChar: batch[1],
+                                    model.inputparentlist: batch[5],
+                                    model.inputrulelist: batch[6],
+                                    model.inputrulelistnode: batch[7],
+                                    model.inputrulelistson: batch[8],
+                                    model.inputY_Num: batch[9],
+                                    model.tree_path_vec: batch[12],
+                                    model.labels: batch[18],
+                                    model.loss_mask: loss_mask,
+                                    model.antimask: pre_mask(),
+                                    model.treemask: batch[16],
+                                    model.father_mat: batch[17],
+                                    model.state: state,
+                                    model.keep_prob: 0.85,
+                                    model.rewards: rewards,
+                                    model.is_train: True
+                                    })
     return pre
+
 
 def rules_component_batch(batch):
     vecnode = np.zeros([len(batch[2]), len(batch[2][0])])
     vecson = np.zeros([len(batch[2]), len(batch[2][0]), 3])
-    #print (batch[2])
-    #print (batch[-1])
+    # print (batch[2])
+    # print (batch[-1])
     for i in range(len(batch[2])):
         for t in range(len(batch[2][0])):
             vnode, vson = rulebondast(int(batch[2][i][t]), "", batch[-1][i])
@@ -171,6 +180,7 @@ def rules_component_batch(batch):
             for q in range(3):
                 vecson[i, t, q] = vson[q]
     return [vecnode, vecson]
+
 
 def g_eval(sess, model, batch_data):
     batch = batch_data
@@ -186,26 +196,27 @@ def g_eval(sess, model, batch_data):
             if batch[9][i][t] == 0:
                 break
             loss_mask[i][t] = 1
-    
+
     state = get_state(batch_data)
-    acc, pre, pre_rules = sess.run([model.accuracy, model.correct_prediction, model.max_res], feed_dict={model.input_NL: batch[0],
-                                                model.input_NLChar:batch[1],
-                                                model.inputparentlist: batch[5],
-                                                model.inputrulelist:batch[6],
-                                                model.inputrulelistnode:batch[7],
-                                                model.inputrulelistson:batch[8],
-                                                model.inputY_Num: batch[9],
-                                                model.tree_path_vec: batch[12],
-                                                model.loss_mask:loss_mask,
-                                                model.antimask:pre_mask(),
-                                                model.treemask:batch[16],
-                                                model.father_mat:batch[17],
-                                                model.labels:batch[18],
-                                                model.state:state,
-                                                model.keep_prob: 1,
-                                                model.rewards: rewards,
-                                                model.is_train: False
-                                                })  
+    acc, pre, pre_rules = sess.run([model.accuracy, model.correct_prediction, model.max_res],
+                                   feed_dict={model.input_NL: batch[0],
+                                              model.input_NLChar: batch[1],
+                                              model.inputparentlist: batch[5],
+                                              model.inputrulelist: batch[6],
+                                              model.inputrulelistnode: batch[7],
+                                              model.inputrulelistson: batch[8],
+                                              model.inputY_Num: batch[9],
+                                              model.tree_path_vec: batch[12],
+                                              model.loss_mask: loss_mask,
+                                              model.antimask: pre_mask(),
+                                              model.treemask: batch[16],
+                                              model.father_mat: batch[17],
+                                              model.labels: batch[18],
+                                              model.state: state,
+                                              model.keep_prob: 1,
+                                              model.rewards: rewards,
+                                              model.is_train: False
+                                              })
     p = []
     max_res = []
     for i in range(len(batch[9])):
@@ -222,11 +233,13 @@ def g_eval(sess, model, batch_data):
 
 def run():
     Code_gen_model = code_gen_model(classnum, embedding_size, conv_layernum, conv_layersize, rnn_layernum,
-                                    batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len, parent_len, learning_rate, keep_prob, len(char_vocabulary), rules_len)
-    valid_batch, _ = batch_data(batch_size, "dev") # read data 
+                                    batch_size, NL_vocabu_size, Tree_vocabu_size, NL_len, Tree_len,
+                                    parent_len, learning_rate, keep_prob, len(char_vocabulary),
+                                    rules_len)
+    valid_batch, _ = batch_data(batch_size, "dev")  # read data
     best_accuracy = 0
     best_card = 0
-    config = tf.ConfigProto(allow_soft_placement=True)#, log_device_placement=True)
+    config = tf.ConfigProto(allow_soft_placement=True)  # , log_device_placement=True)
     config.gpu_options.allow_growth = True
     f = open(project + "out.txt", "w")
     with tf.Session(config=config) as sess:
@@ -236,7 +249,7 @@ def run():
             Code_gen_model.steps += 1.
             batch, _ = batch_data(batch_size, "train")
             for j in tqdm(range(len(batch))):
-                if i % 3 == 0 and j % 2000 == 0: #eval
+                if i % 3 == 0 and j % 2000 == 0:  # eval
                     ac = 0
                     res = []
                     sumac = 0
@@ -267,8 +280,8 @@ def run():
                             best_accuracy = ac
                             save_model(sess, 1)
                             print("find the better accuracy " +
-                              str(best_accuracy) + "in epoches " + str(i))
-                    
+                                  str(best_accuracy) + "in epoches " + str(i))
+
                 if i % 50 == 0 and j == 0:
                     ac = 0
                     res = []
@@ -279,7 +292,7 @@ def run():
 
                         res.extend(loss1)
                         ac += ac1;
-                    print (len(res))
+                    print(len(res))
                     ac /= len(valid_batch)
                     card, copyc, copycard = get_card(res)
 
@@ -290,13 +303,12 @@ def run():
                 tf.train.global_step(sess, Code_gen_model.global_step)
 
     f.close()
-    #print("training finish")
+    # print("training finish")
     return
-
-
 
 
 def main():
     run()
+
 
 main()

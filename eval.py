@@ -2,6 +2,7 @@ import sys
 
 project = str(sys.argv[1]) + "/"
 
+
 class ast_node:
     def __init__(self, node):
         self.node = node
@@ -30,7 +31,7 @@ def parse_tree(line):
     for i in range(len(words)):
         node = words[i]
         if node == "^":
-            #stack.pop()
+            # stack.pop()
             stack[-1].do_sort()
             if len(stack) == 1:
                 ans = stack[0]
@@ -40,12 +41,14 @@ def parse_tree(line):
             if len(stack) != 0:
                 now_node = stack[-1]
                 now_node.son.append(new_node)
-                #now_node.do_sort()
+                # now_node.do_sort()
             stack.append(new_node)
     return str(ans)
 
+
 if "HS" in project:
-    import os 
+    import os
+
     os.system("cd HS-B/eval && python3 gener.py")
     os.system("cd HS-B/eval && python3 ast2code.py")
     exit()
@@ -61,19 +64,16 @@ for i in range(len(lines)):
     gens = f.readlines()
     if parse_tree("root " + lines[i] + " ^") == parse_tree(gens[0]):
         count += 1
-    #elif "count" in parse_tree(gens[0]) and "count" in parse_tree(lines[i]):
+    # elif "count" in parse_tree(gens[0]) and "count" in parse_tree(lines[i]):
     #    print (parse_tree(lines[i]))
     #    print (parse_tree(gens[0]))
     #    print ("*************")
     else:
-        print ("Gold:", parse_tree("root " +lines[i] + " ^"))
-        print ("Gen:", parse_tree(gens[0]))
-        print ("-------")
-    print ("%s / %s : %s, All: %s" % (str(count), str(i + 1), str(count / (i + 1)), str(count / cards)) )
-#for i in range(5):
+        print("Gold:", parse_tree("root " + lines[i] + " ^"))
+        print("Gen:", parse_tree(gens[0]))
+        print("-------")
+    print("%s / %s : %s, All: %s" % (str(count), str(i + 1), str(count / (i + 1)), str(count / cards)))
+# for i in range(5):
 #    print (lines[-i])
 #    print (str(parse_tree(lines[-i])))
 #    print ("------")
-
-
-

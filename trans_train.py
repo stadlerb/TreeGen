@@ -6,45 +6,48 @@ f = open("train_trans.txt", "w")
 
 rule = []
 
+
 def find_father(words, i):
     index = i - 1
     count = 0
     while index >= 0:
-        #print ("fa", words[i])
+        # print ("fa", words[i])
         if "^" in words[index]:
             count -= 1
         else:
             count += 1
         if count == 1:
-#            exit()
-            print (words[index])
+            #            exit()
+            print(words[index])
             return rule[index]
         index -= 1
     return -1
+
 
 def find_father_index(words, i):
     index = i - 1
     count = 0
     while index >= 0:
-        #print ("fa", words[i])
+        # print ("fa", words[i])
         if "^" in words[index]:
             count -= 1
         else:
             count += 1
         if count == 1:
-#            exit()
-#            print (words[index])
-            #return words[index]
+            #            exit()
+            #            print (words[index])
+            # return words[index]
             return index
         index -= 1
     return -1
 
+
 def get_deepth(line, rule, index_rule):
     words = line.strip().split()
-    #depth = len(words)
-    #if words[0] == "arguments":
+    # depth = len(words)
+    # if words[0] == "arguments":
     #    return "a" + str(depth)
-    #return depth
+    # return depth
     deepth = -1
     bf = ""
     for i in range(len(words)):
@@ -53,24 +56,22 @@ def get_deepth(line, rule, index_rule):
             deepth -= 1
         else:
             if "node_gen" == words[i]:
-            #    if bf == "arguments":
-            #        return "a" + str(deepth)
+                #    if bf == "arguments":
+                #        return "a" + str(deepth)
                 rule.append(-1)
-                print ("-----")
-                print (words[i])
+                print("-----")
+                print(words[i])
                 index = find_father_index(words, i)
                 rule[index] = index_rule
                 return find_father(words, index)
-                #return father
+            # return father
             deepth += 1
         bf = word
         if i >= len(rule):
             rule.append(-1)
-            #if "node_gen" == word:
+            # if "node_gen" == word:
             #    return deepth
     return -1
-
-
 
 
 def write_one(lines, index):
@@ -103,36 +104,35 @@ def write_one(lines, index):
                 global rule
                 rule = []
                 index_rule = 0
-                #for site in range(length)[::-1]:
+                # for site in range(length)[::-1]:
                 # if i == 7:
                 #    deepth.append(get_deepth(lines[index + i - 6 - 8 * site], rule, index_rule))
                 #    index_rule += 1
-                #print (deepth)
-#                exit()
+                # print (deepth)
+            #                exit()
             if i == 8:
                 length = len(numbers)
                 for site in range(length)[::-1]:
                     if i == 8:
                         deepth.append(int(lines[index + i - 9 * site]))
-                        #index_rule += 1 
-                #deepth.append(int(lines[index + i]))
-    #deepth = deepth[::-1]
+                        # index_rule += 1
+                # deepth.append(int(lines[index + i]))
+    # deepth = deepth[::-1]
     for i in deepth:
         f.write(str(i) + " ")
     f.write("\n")
 
 
-
 for i in range(10, len(lines) + 9):
     t = i % 9
-    if t == 5: # predicted rules lines
-       if i >= len(lines):
-           rules = []
-       else:
-           rules = lines[i].strip().split()
-       if len(rules) == 0: # 
-           write_one(lines, i - 9 - 5)
-           #rules = lines[i - 8].strip().split()
+    if t == 5:  # predicted rules lines
+        if i >= len(lines):
+            rules = []
+        else:
+            rules = lines[i].strip().split()
+        if len(rules) == 0:  #
+            write_one(lines, i - 9 - 5)
+            # rules = lines[i - 8].strip().split()
 
 f.close()
 
@@ -142,18 +142,17 @@ f.close()
 
 f = open("dev_trans.txt", "w")
 
-
 for i in range(10, len(lines) + 9):
     t = i % 9
-    if t == 5: # predicted rules lines
-       if i >= len(lines):
-           rules = []
-       else:
-           rules = lines[i].strip().split()
-       if len(rules) == 0: # 
-           print (i)
-           write_one(lines, i - 9 - 5)
-           #rules = lines[i - 8].strip().split()
+    if t == 5:  # predicted rules lines
+        if i >= len(lines):
+            rules = []
+        else:
+            rules = lines[i].strip().split()
+        if len(rules) == 0:  #
+            print(i)
+            write_one(lines, i - 9 - 5)
+            # rules = lines[i - 8].strip().split()
 
 f.close()
 
@@ -163,17 +162,16 @@ f.close()
 
 f = open("test_trans.txt", "w")
 
-
 for i in range(10, len(lines) + 9):
     t = i % 9
-    if t == 5: # predicted rules lines
-       if i >= len(lines):
-           rules = []
-       else:
-           rules = lines[i].strip().split()
-       if len(rules) == 0: # 
-           print (i)
-           write_one(lines, i - 9 - 5)
-           #rules = lines[i - 8].strip().split()
+    if t == 5:  # predicted rules lines
+        if i >= len(lines):
+            rules = []
+        else:
+            rules = lines[i].strip().split()
+        if len(rules) == 0:  #
+            print(i)
+            write_one(lines, i - 9 - 5)
+            # rules = lines[i - 8].strip().split()
 
 f.close()
